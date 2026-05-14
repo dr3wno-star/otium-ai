@@ -6,66 +6,173 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM FINAL STABLE MODE");
+console.log("OTIUM BACKEND v1 RUNNING");
 
-// =========================
-// MAIN ENDPOINT
-// =========================
+// ===============================
+// CONFIG
+// ===============================
 
-app.post("/api/question", (req, res) => {
+const MAX_RESONANCE = 5;
+const RECHARGE_TIME = 4 * 60 * 60 * 1000; // 4h
 
-  const memory = req.body.memory || [];
+// ===============================
+// SIMPLE IN-MEMORY DB (na start)
+// ===============================
 
-  const conversation = memory.join("\n");
+const users = {};
 
-  const last = memory[memory.length - 1] || "";
+// ===============================
+// HELPERS
+// ===============================
 
-  const reply = generateReply(conversation, last);
+function getUser(userId) {
+  if (!users[userId]) {
+    users[userId] = {
+      resonance: MAX_RESONANCE,
+      lastRecharge: Date.now(),
+      profile: {
+        relation: 0,
+        thinking: 0,
+        values: 0,
+        communication: 0
+      }
+    };
+  }
+  return users[userId];
+}
 
-  return res.json({
-    question: reply
+// regeneracja rezonansu
+function updateResonance(user) {
+  const now = Date.now();
+  const diff = now - user.lastRecharge;
+
+  const gained = Math.floor(diff / RECHARGE_TIME);
+
+  if (gained > 0) {
+    user.resonance = Math.min(MAX_RESONANCE, user.resonance + gained);
+    user.lastRecharge = now;
+  }
+}
+
+// ===============================
+// ROUTES
+// ===============================
+
+// INIT / STATUS
+app.post("/api/init", (req, res) => {
+  const { userId } = req.body;
+
+  const user = getUser(userId);
+  updateResonance(user);
+
+  res.json({
+    resonance: user.resonance,
+    max: MAX_RESONANCE
   });
 });
 
-// =========================
-// SINGLE RESPONSE ENGINE (NO LOOPS)
-// =========================
+// START CHAT SESSION
+app.post("/api/start", (req, res) => {
+  const { userId } = req.body;
 
-function generateReply(conversation, lastUser) {
+  const user = getUser(userId);
+  updateResonance(user);
 
-  const text = conversation.toLowerCase();
-
-  // 🔥 KLUCZ: NIE MA JUŻ „TYPE SYSTEMU”
-  // tylko styl odpowiedzi zależny od kontekstu
-
-  if (text.includes("relacj") || text.includes("osob") || text.includes("wiar")) {
-    return "Brzmi jak szukasz relacji opartej na czymś głębszym niż codzienność — bardziej o więzi i sensie niż powierzchowności. Co w takim połączeniu byłoby dla Ciebie najważniejsze?";
+  if (user.resonance <= 0) {
+    return res.json({
+      ok: false,
+      message: "Brak rezonansu"
+    });
   }
 
-  if (text.includes("gra") || text.includes("craft") || text.includes("budow")) {
-    return "Wygląda na to, że w grach najbardziej pociąga Cię tworzenie i swoboda działania. To bardziej forma relaksu czy coś, co daje Ci poczucie sprawczości?";
+  user.resonance -= 1;
+
+  res.json({
+    ok: true,
+    resonance: user.resonance
+  });
+});
+
+// CHAT + PROFILING
+app.post("/api/message", (req, res) => {
+  const { userId, message } = req.body;
+
+  const user = getUser(userId);
+
+  const text = (message || "").toLowerCase();
+
+  // ===============================
+  // PROFILING (lekki, nie inwazyjny)
+  // ===============================
+
+  if (text.includes("relac") || text.includes("osob")) {
+    user.profile.relation += 1;
   }
 
-  if (text.includes("czuję") || text.includes("myśl") || text.includes("życie")) {
-    return "Słychać w tym moment, w którym próbujesz coś w sobie uporządkować. Co teraz najbardziej wybija się na pierwszy plan?";
+  if (text.includes("czuję") || text.includes("myśl") || text.includes("analiz")) {
+    user.profile.thinking += 1;
   }
 
-  // DEFAULT (WAŻNE: BEZ POWTARZANIA TEGO SAMEGO STYLU)
-  const fallback = [
-    "Co teraz najbardziej zajmuje Twoją uwagę?",
-    "Co w tym momencie jest dla Ciebie najważniejsze?",
-    "Jak byś opisał to, co teraz w Tobie dominuje?"
-  ];
+  if (text.includes("sens") || text.includes("wiar") || text.includes("duch")) {
+    user.profile.values += 1;
+  }
 
-  return fallback[Math.floor(Math.random() * fallback.length)];
-}
+  if (text.includes("rozmaw") || text.includes("lubię gadać")) {
+    user.profile.communication += 1;
+  }
 
-// =========================
-// START
-// =========================
+  // ===============================
+  // RESPONSE ENGINE (BEZ PĘTLI)
+  // ===============================
+
+  let reply = "";
+
+  if (user.profile.relation > 2) {
+    reply = "Brzmi jak relacje są dla Ciebie czymś głębszym niż tylko kontakt.";
+  } else if (user.profile.thinking > 2) {
+    reply = "Widzę, że często analizujesz to, co czujesz i myślisz.";
+  } else if (user.profile.values > 2) {
+    reply = "W Twoich wypowiedziach pojawia się potrzeba sensu i czegoś większego.";
+  } else {
+    reply = "Rozumiem. Opowiedz mi trochę więcej o tym.";
+  }
+
+  res.json({
+    reply
+  });
+});
+
+// ===============================
+// AURA SNAPSHOT (FUTURE)
+// ===============================
+
+app.post("/api/aura", (req, res) => {
+  const { userId } = req.body;
+
+  const user = getUser(userId);
+
+  let aura = "flow";
+
+  const p = user.profile;
+
+  if (p.values > p.thinking && p.values > p.relation) {
+    aura = "spiritual";
+  } else if (p.thinking > p.relation) {
+    aura = "analytical";
+  } else if (p.relation > 2) {
+    aura = "relational";
+  }
+
+  res.json({
+    aura,
+    profile: user.profile
+  });
+});
+
+// ===============================
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("RUNNING ON PORT", PORT);
+  console.log("OTIUM RUNNING ON", PORT);
 });
