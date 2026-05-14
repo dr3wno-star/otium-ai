@@ -6,85 +6,62 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM HARD FIX ENGINE");
+console.log("OTIUM REAL TALK ENGINE V1");
 
 // =========================
-// STATE
+// MAIN ENDPOINT
 // =========================
 
-let state = {
-  lastQuestionType: null,
-  lastQuestionText: null
-};
-
-// =========================
-// MAIN
-// =========================
-
-app.post("/api/question", (req, res) => {
+app.post("/api/question", async (req, res) => {
 
   const memory = req.body.memory || [];
-  const last = (memory[memory.length - 1] || "").toLowerCase();
 
-  const response = generate(last);
+  const conversation = memory.join("\n");
 
-  // 🔴 HARD BLOCK DUPLICATES
-  if (response.type === state.lastQuestionType) {
-    return res.json({
-      question: fallback(last),
-      type: "fallback"
-    });
-  }
+  const response = generateReply(conversation);
 
-  state.lastQuestionType = response.type;
-  state.lastQuestionText = response.question;
-
-  return res.json(response);
+  return res.json({
+    question: response
+  });
 });
 
 // =========================
-// CORE GENERATION (NO LOOPING TYPES)
+// CORE LOGIC (NO RULE LOOPING)
 // =========================
 
-function generate(text) {
+function generateReply(conversation) {
 
-  // RELACJE
-  if (text.includes("relacj") || text.includes("osob")) {
-    return {
-      type: "reflection",
-      question: "Co w relacjach jest dla Ciebie dziś najważniejsze — bliskość czy zrozumienie?"
-    };
-  }
+  const last = conversation.split("\n").slice(-1)[0] || "";
 
-  // DUCHOWOŚĆ
-  if (text.includes("wiara") || text.includes("duch")) {
-    return {
-      type: "depth",
-      question: "Jaką rolę wiara lub duchowość odgrywa w Twoim codziennym życiu?"
-    };
-  }
-
-  // GAMING / ZAINTERESOWANIA
-  if (text.includes("gra") || text.includes("gram") || text.includes("craft")) {
-    return {
-      type: "experience",
-      question: "Co w tej aktywności daje Ci największe poczucie swobody?"
-    };
-  }
-
-  // DEFAULT (ważne: NIE powtarzamy struktury „czy bardziej…”)
-  return {
-    type: "general",
-    question: "Co teraz najbardziej dominuje w Twoich myślach?"
-  };
+  // prosta, stabilna reakcja zamiast "engine"
+  return buildResponse(last, conversation);
 }
 
 // =========================
-// FALLBACK (anti-loop safety)
+// RESPONSE BUILDER
 // =========================
 
-function fallback(text) {
-  return "Chcę lepiej zrozumieć, co jest dla Ciebie najważniejsze w tym wszystkim.";
+function buildResponse(last, full) {
+
+  const text = full.toLowerCase();
+
+  // RELACJE / DUCHOWOŚĆ
+  if (text.includes("relacj") || text.includes("osob") || text.includes("wiara")) {
+    return "Brzmi jak szukasz czegoś głębszego w relacjach — bardziej sensu i bliskości niż powierzchowności. Co dla Ciebie oznacza taka relacja w praktyce?";
+  }
+
+  // GAMING / ŚWIATY WIRTUALNE
+  if (text.includes("gra") || text.includes("craft") || text.includes("budow")) {
+    return "Wygląda na to, że lubisz w grach swobodę tworzenia i kontrolę nad światem. To bardziej forma relaksu czy wyrażania siebie?";
+  }
+
+  // EMOCJE / REFLEKSJA
+  if (text.includes("czuję") || text.includes("myśl") || text.includes("życie")) {
+    return "Słyszę w tym trochę refleksji — jakbyś próbował poukładać coś w sobie. Co teraz najbardziej Ci się w tym miesza?";
+  }
+
+  // DEFAULT (ważne: NIE pytania w kółko)
+  return "Opowiedz mi trochę więcej o tym — chcę lepiej zrozumieć Twój punkt widzenia.";
 }
 
 // =========================
