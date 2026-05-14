@@ -6,15 +6,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM V11 MEANING ENGINE");
+console.log("OTIUM V12 ANCHOR ENGINE");
 
 // =========================
 // STATE
 // =========================
 
 let state = {
-  lastMeaning: "",
-  lastQuestion: ""
+  anchor: null,
+  lastQuestion: null
 };
 
 // =========================
@@ -26,67 +26,78 @@ app.post("/api/question", (req, res) => {
   const memory = req.body.memory || [];
   const last = (memory[memory.length - 1] || "").toLowerCase();
 
-  const meaning = extractMeaning(last);
+  // 🔥 detect if user breaks context
+  const isMetaBreak = detectMetaBreak(last);
 
-  const question = generateFromMeaning(meaning);
+  if (isMetaBreak) {
+    state.anchor = null;
+  }
+
+  // 🔥 establish anchor if needed
+  if (!state.anchor) {
+    state.anchor = extractAnchor(last);
+  }
+
+  const question = generate(state.anchor, last);
 
   if (question === state.lastQuestion) {
-    return res.json({
-      question: fallback()
-    });
+    return res.json({ question: fallback() });
   }
 
   state.lastQuestion = question;
 
   return res.json({
     question,
-    meaning
+    anchor: state.anchor
   });
 });
 
 // =========================
-// MEANING ENGINE (CORE)
+// META BREAK DETECTION
 // =========================
 
-function extractMeaning(text) {
+function detectMetaBreak(text) {
 
-  return {
-    gaming_identity: text.includes("gra") || text.includes("craft") || text.includes("budow"),
-    relationship_need: text.includes("osob") || text.includes("akcept") || text.includes("relacj"),
-    social_search: text.includes("ludzie") || text.includes("pozn"),
-    escape: text.includes("uciecz") || text.includes("świat"),
-    creativity: text.includes("tworz") || text.includes("budow")
-  };
+  return (
+    text.includes("o jaką") ||
+    text.includes("o co pytasz") ||
+    text.includes("wszystko") ||
+    text.length < 10
+  );
 }
 
 // =========================
-// QUESTION GENERATOR (SEMANTIC)
+// ANCHOR EXTRACTION
 // =========================
 
-function generateFromMeaning(m) {
+function extractAnchor(text) {
 
-  // 🔥 RELATIONSHIP + IDENTITY
-  if (m.relationship_need && m.gaming_identity) {
-    return "Czy czujesz, że Twoje zainteresowania są częścią tego kim jesteś w relacjach z ludźmi?";
+  if (text.includes("gra") || text.includes("gram")) return "gaming";
+  if (text.includes("relacj") || text.includes("ludzie")) return "social";
+  if (text.includes("czuję") || text.includes("myśl")) return "reflection";
+
+  return "general";
+}
+
+// =========================
+// QUESTION ENGINE
+// =========================
+
+function generate(anchor, last) {
+
+  if (anchor === "gaming") {
+    return "Co w tej grze jest dla Ciebie najbardziej znaczące?";
   }
 
-  // GAMING + CREATIVITY
-  if (m.gaming_identity && m.creativity) {
-    return "Co w budowaniu i tworzeniu w grach daje Ci największe poczucie sensu?";
+  if (anchor === "social") {
+    return "Co w relacjach jest dla Ciebie dziś najbardziej niejasne?";
   }
 
-  // SOCIAL SEARCH
-  if (m.social_search) {
-    return "Jakiego rodzaju relacji dziś najbardziej szukasz?";
+  if (anchor === "reflection") {
+    return "Co w Twoich myślach dziś dominuje?";
   }
 
-  // ESCAPE
-  if (m.escape) {
-    return "Przed czym najbardziej uciekasz w takie światy?";
-  }
-
-  // DEFAULT
-  return "Co w tym wszystkim jest dla Ciebie dziś najważniejsze?";
+  return "Co teraz jest dla Ciebie najbardziej istotne?";
 }
 
 // =========================
@@ -94,7 +105,7 @@ function generateFromMeaning(m) {
 // =========================
 
 function fallback() {
-  return "Co teraz najbardziej czujesz w tej sytuacji?";
+  return "Możesz to doprecyzować?";
 }
 
 // =========================
