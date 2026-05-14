@@ -6,15 +6,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM V12 ANCHOR ENGINE");
+console.log("OTIUM DIALOG STYLE ENGINE V1");
 
 // =========================
 // STATE
 // =========================
 
 let state = {
-  anchor: null,
-  lastQuestion: null
+  lastMode: null
 };
 
 // =========================
@@ -26,86 +25,73 @@ app.post("/api/question", (req, res) => {
   const memory = req.body.memory || [];
   const last = (memory[memory.length - 1] || "").toLowerCase();
 
-  // 🔥 detect if user breaks context
-  const isMetaBreak = detectMetaBreak(last);
+  const response = generateResponse(last);
 
-  if (isMetaBreak) {
-    state.anchor = null;
-  }
-
-  // 🔥 establish anchor if needed
-  if (!state.anchor) {
-    state.anchor = extractAnchor(last);
-  }
-
-  const question = generate(state.anchor, last);
-
-  if (question === state.lastQuestion) {
-    return res.json({ question: fallback() });
-  }
-
-  state.lastQuestion = question;
-
-  return res.json({
-    question,
-    anchor: state.anchor
-  });
+  return res.json(response);
 });
 
 // =========================
-// META BREAK DETECTION
+// CORE ENGINE
 // =========================
 
-function detectMetaBreak(text) {
+function generateResponse(text) {
 
-  return (
-    text.includes("o jaką") ||
-    text.includes("o co pytasz") ||
-    text.includes("wszystko") ||
-    text.length < 10
-  );
+  const t = text;
+
+  // --- RELACJE / DUCHOWOŚĆ ---
+  if (t.includes("wiara") || t.includes("duch") || t.includes("relacj")) {
+
+    return reflectExpand();
+  }
+
+  // --- GAMING / ZAINTERESOWANIA ---
+  if (t.includes("gra") || t.includes("gram") || t.includes("craft")) {
+
+    return expandShift();
+  }
+
+  // --- TOŻSAMOŚĆ / RELACJE ---
+  if (t.includes("osob") || t.includes("kto") || t.includes("ludzie")) {
+
+    return reflectClarify();
+  }
+
+  // DEFAULT
+  return mixedResponse();
 }
 
 // =========================
-// ANCHOR EXTRACTION
+// DIALOG MODES
 // =========================
 
-function extractAnchor(text) {
-
-  if (text.includes("gra") || text.includes("gram")) return "gaming";
-  if (text.includes("relacj") || text.includes("ludzie")) return "social";
-  if (text.includes("czuję") || text.includes("myśl")) return "reflection";
-
-  return "general";
+function reflectExpand() {
+  return {
+    question: "Brzmi jak szukasz relacji opartej na czymś głębszym niż codzienność — bardziej wspólnych wartościach i sensie. Co w tym jest dla Ciebie najważniejsze?"
+  };
 }
 
-// =========================
-// QUESTION ENGINE
-// =========================
-
-function generate(anchor, last) {
-
-  if (anchor === "gaming") {
-    return "Co w tej grze jest dla Ciebie najbardziej znaczące?";
-  }
-
-  if (anchor === "social") {
-    return "Co w relacjach jest dla Ciebie dziś najbardziej niejasne?";
-  }
-
-  if (anchor === "reflection") {
-    return "Co w Twoich myślach dziś dominuje?";
-  }
-
-  return "Co teraz jest dla Ciebie najbardziej istotne?";
+function expandShift() {
+  return {
+    question: "Wygląda na to, że w grach ważne jest dla Ciebie tworzenie i swoboda. Czy to coś, czego brakuje Ci też w realnym życiu?"
+  };
 }
 
-// =========================
-// FALLBACK
-// =========================
+function reflectClarify() {
+  return {
+    question: "Czy bardziej chodzi Ci o znalezienie osoby podobnej do Ciebie, czy raczej kogoś kto Cię uzupełnia?"
+  };
+}
 
-function fallback() {
-  return "Możesz to doprecyzować?";
+function mixedResponse() {
+  const pool = [
+    "Co teraz najbardziej zajmuje Twoje myśli?",
+    "Co w tym momencie jest dla Ciebie najważniejsze?",
+    "Co próbujesz dziś zrozumieć o sobie?"
+  ];
+
+  return {
+    question: pool[Math.floor(Math.random() * pool.length)]
+  };
 }
 
 // =========================
