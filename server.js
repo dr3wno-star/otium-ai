@@ -1,44 +1,15 @@
 import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
-import OpenAI from "openai";
+
+console.log("OTIUM STARTING");
 
 const app = express();
 
-app.use(cors());
-app.use(bodyParser.json());
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-app.post("/api/question", async (req, res) => {
-  const profile = req.body.profile || {};
-
-  const prompt = `
-You are OTIUM.
-
-User profile:
-depth: ${profile.depth}
-emotion: ${profile.emotion}
-openness: ${profile.openness}
-
-Generate ONE short introspective question (max 14 words).
-Human, calm, minimal.
-`;
-
-  try {
-    const result = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }]
-    });
-
-    res.json({ question: result.choices[0].message.content });
-
-  } catch (e) {
-    res.json({ question: "Co w Tobie dziś naprawdę żyje?" });
-  }
+app.get("/", (req, res) => {
+  res.send("OTIUM OK");
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("OTIUM AI running"));
+
+app.listen(PORT, () => {
+  console.log("RUNNING ON PORT", PORT);
+});
