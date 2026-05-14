@@ -1,123 +1,109 @@
-import express from "express";
-import cors from "cors";
-
+const express = require('express');
+const cors = require('cors');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// ======================
-// SESSION (MVP)
-// ======================
-let session = {
-  answers: [],
-  vectors: {
-    intensity: 0,
-    expressiveness: 0,
-    analytic: 0,
-    relational: 0,
-  },
-  aura: null,
+// In-memory store dla sesji
+let userSession = {
+    vector: { intensity: 0.5, expressiveness: 0.5, analytic: 0.5, relational: 0.5 },
+    step: 0
 };
 
-// ======================
-// VECTOR ENGINE v1.1
-// ======================
-function updateVectors(answers) {
-  let v = {
-    intensity: 0,
-    expressiveness: 0,
-    analytic: 0,
-    relational: 0,
-  };
+// Matryca pytań i ich wpływu na wektory
+const questions = [
+    {
+        id: 0,
+        text: "Świat płonie od emocji czy panuje w nim chłodny porządek?",
+        options: [
+            { text: "Ogień", impact: { intensity: 0.3, expressiveness: 0.2, analytic: -0.2 } },
+            { text: "Porządek", impact: { intensity: -0.2, analytic: 0.4, expressiveness: -0.2 } }
+        ]
+    },
+    {
+        id: 1,
+        text: "Ważniejsze jest KTO mówi, czy CO dokładnie ma do przekazania?",
+        options: [
+            { text: "KTO", impact: { relational: 0.4, expressiveness: 0.2, analytic: -0.2 } },
+            { text: "CO", impact: { analytic: 0.4, relational: -0.2, intensity: 0.1 } }
+        ]
+    },
+    {
+        id: 2,
+        text: "Twoje wnętrze to otwarta księga czy strzeżony ogród?",
+        options: [
+            { text: "Księga", impact: { expressiveness: 0.5, relational: 0.2 } },
+            { text: "Ogród", impact: { intensity: 0.3, expressiveness: -0.4, analytic: 0.1 } }
+        ]
+    },
+    {
+        id: 3,
+        text: "Szukasz momentów, które wyrywają z butów czy dają oparcie?",
+        options: [
+            { text: "Wstrząs", impact: { intensity: 0.4, analytic: 0.2, relational: -0.2 } },
+            { text: "Oparcie", impact: { relational: 0.4, intensity: -0.3, expressiveness: 0.1 } }
+        ]
+    },
+    {
+        id: 4,
+        text: "Chcesz coś zrozumieć, czy po prostu nie być samemu?",
+        options: [
+            { text: "Zrozumieć", impact: { analytic: 0.4, intensity: 0.1, relational: -0.3 } },
+            { text: "Nie być samemu", impact: { relational: 0.5, expressiveness: 0.2, analytic: -0.2 } }
+        ]
+    }
+];
 
-  answers.forEach((a) => {
-    const t = a.toLowerCase();
-
-    // INTENSITY (energia, emocje, ważność)
-    if (/(ważn|siln|mocn|intens|głęb|porusza)/.test(t)) v.intensity += 0.6;
-
-    // EXPRESSIVENESS (emocje, dusza, odczucia)
-    if (/(czuję|emocj|serc|dusza|wewnętrz|nietypow)/.test(t))
-      v.expressiveness += 0.6;
-
-    // ANALYTIC (myślenie, analiza, logika)
-    if (/(myśl|rozum|analiz|logik|dlacz|zrozum)/.test(t))
-      v.analytic += 0.6;
-
-    // RELATIONAL (ludzie, rozmowy, relacje)
-    if (/(ludź|osob|relac|rozmow|kontakt|ktoś)/.test(t))
-      v.relational += 0.6;
-  });
-
-  return v;
-}
-
-// ======================
-// AURA ENGINE v1.1
-// ======================
-function calculateAura(v) {
-  const sum = v.intensity + v.expressiveness + v.analytic + v.relational;
-
-  // fallback (KLUCZOWE)
-  if (sum === 0) return "Obserwator";
-
-  if (v.analytic > 1.0 && v.relational < 0.6) {
-    return "Obserwator";
-  }
-
-  if (v.relational > 1.0 && v.expressiveness < 0.8) {
-    return "Cicha Głębia";
-  }
-
-  if (v.intensity > 1.0 && v.expressiveness > 0.8) {
-    return "Żywy Umysł";
-  }
-
-  if (v.expressiveness > 1.2) {
-    return "Bezpośrednia Obecność";
-  }
-
-  return "Żywy Umysł";
-}
-
-// ======================
-// API
-// ======================
-
-app.post("/answer", (req, res) => {
-  const answer = req.body?.answer || "";
-
-  console.log("ANSWER:", answer);
-
-  session.answers.push(answer);
-
-  if (session.answers.length >= 4) {
-    session.vectors = updateVectors(session.answers);
-    session.aura = calculateAura(session.vectors);
-  }
-
-  res.json({
-    step: session.answers.length,
-    done: session.answers.length >= 4,
-  });
+app.get('/question', (req, res) => {
+    if (userSession.step < questions.length) {
+        res.json(questions[userSession.step]);
+    } else {
+        res.json({ end: true });
+    }
 });
 
-app.get("/result", (req, res) => {
-  res.json({
-    vectors: session.vectors,
-    aura: session.aura || "Obserwator",
-    firstMessage:
-      session.aura === "Żywy Umysł"
-        ? "Są rozmowy, które zaczynają się od sposobu myślenia. Co ostatnio naprawdę Cię poruszyło?"
-        : session.aura === "Cicha Głębia"
-        ? "Nie wszystko trzeba mówić wprost. Co czujesz, kiedy rozmawiasz z kimś nowym?"
-        : "Co sprawiło, że trafiłeś właśnie tutaj?",
-  });
+app.post('/answer', (req, res) => {
+    const { optionIndex } = req.body;
+    const currentQuestion = questions[userSession.step];
+    if (!currentQuestion) return res.status(400).json({ error: "Brak pytania" });
+    
+    const impact = currentQuestion.options[optionIndex].impact;
+
+    for (let key in impact) {
+        userSession.vector[key] = Math.max(0, Math.min(1, userSession.vector[key] + impact[key]));
+    }
+
+    userSession.step++;
+    res.json({ success: true });
+});
+
+app.get('/result', (req, res) => {
+    const v = userSession.vector;
+    let aura = "OBSERWATOR";
+
+    if (v.relational > 0.6 && v.expressiveness > 0.6) aura = "BEZPOŚREDNIA OBECNOŚĆ";
+    else if (v.analytic > 0.6 && v.intensity > 0.5) aura = "ŻYWY UMYSŁ";
+    else if (v.relational > 0.6 && v.expressiveness < 0.5) aura = "CICHA GŁĘBIA";
+
+    const messages = {
+        "OBSERWATOR": "System ustabilizowany. Parametry ustawione na klarowność. Słucham konkretów.",
+        "ŻYWY UMYSŁ": "Przestrzeń otwarta na idee. Łączymy kropki. Co dziś rozłożymy na części pierwsze?",
+        "CICHA GŁĘBIA": "Zwolnij. Tu nie musisz nic udowadniać. Twoje myśli mają czas, by wybrzmieć.",
+        "BEZPOŚREDNIA OBECNOŚĆ": "Dobrze, że jesteś. Czuję Twoją energię. O czym dziś szepcze Twoje serce?"
+    };
+
+    res.json({
+        aura: aura,
+        vector: v,
+        firstMessage: messages[aura]
+    });
+});
+
+app.post('/reset', (req, res) => {
+    userSession = { vector: { intensity: 0.5, expressiveness: 0.5, analytic: 0.5, relational: 0.5 }, step: 0 };
+    res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`OTIUM running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`OTIUM Backend na porcie ${PORT}`));
