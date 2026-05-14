@@ -6,176 +6,103 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM AI V7 ONLINE");
+console.log("OTIUM V8 FLOW ENGINE ONLINE");
 
 // =========================
-// MEMORY (simple session)
+// SESSION STATE (simple global)
 // =========================
 
-let questionHistory = [];
+let session = {
+  lastQuestion: "",
+  lastAnswer: "",
+  turn: 0
+};
 
 // =========================
 // HEALTH
 // =========================
 
 app.get("/", (req, res) => {
-  res.json({ status: "OTIUM AI V7 RUNNING" });
+  res.json({ status: "OTIUM V8 FLOW OK" });
 });
 
 // =========================
-// MAIN AI ENDPOINT
+// MAIN ENDPOINT
 // =========================
 
-app.post("/api/question", async (req, res) => {
+app.post("/api/question", (req, res) => {
 
   const memory = req.body.memory || [];
 
   const last = memory[memory.length - 1] || "";
 
-  const style = detectStyle(memory);
-  const tone = detectTone(memory);
+  const isUserReply = session.lastQuestion.length > 0;
 
-  const question = generateControlledQuestion(last, memory, style, tone);
+  let question;
 
-  return res.json({
-    question,
-    style,
-    tone
-  });
+  // =========================
+  // FLOW CONTROL
+  // =========================
+
+  if (session.turn === 0) {
+
+    question = "Co sprawiło, że tu jesteś?";
+
+  } else if (session.turn % 2 === 1) {
+
+    // USER JUST ANSWERED → generate follow-up
+
+    question = generateFollowUp(session.lastAnswer);
+
+  } else {
+
+    question = generateContinuation(last);
+  }
+
+  // update state
+  session.lastAnswer = last;
+  session.lastQuestion = question;
+  session.turn++;
+
+  return res.json({ question });
 });
 
 // =========================
-// STYLE DETECTION
+// FOLLOW-UP LOGIC
 // =========================
 
-function detectStyle(memory) {
+function generateFollowUp(answer) {
 
-  const text = memory.join(" ").toLowerCase();
+  const a = answer.toLowerCase();
 
-  let score = {
-    basic: 0,
-    deep: 0
-  };
-
-  if (text.length < 40) score.basic++;
-  if (text.includes("dlaczego")) score.deep++;
-  if (text.includes("czuję") || text.includes("myśl")) score.deep++;
-
-  return score.deep > score.basic ? "deep" : "basic";
-}
-
-// =========================
-// TONE DETECTION
-// =========================
-
-function detectTone(memory) {
-
-  const text = memory.join(" ").toLowerCase();
-
-  return {
-    heavy: text.includes("zmęcz") || text.includes("dość"),
-    calm: text.includes("cisz") || text.includes("spokój"),
-    reflective: text.includes("myśl") || text.includes("czuję"),
-    social: text.includes("ludzie") || text.includes("rozmow")
-  };
-}
-
-// =========================
-// ANTI-REPEAT
-// =========================
-
-function isRepeat(q) {
-  return questionHistory.includes(q);
-}
-
-function save(q) {
-  questionHistory.push(q);
-  if (questionHistory.length > 60) questionHistory.shift();
-}
-
-// =========================
-// CORE ENGINE (CONTROLLED AI)
-// =========================
-
-function generateControlledQuestion(last, memory, style, tone) {
-
-  const promptBase = buildPrompt(style, tone, last);
-
-  const generated = generateFromTemplate(promptBase);
-
-  if (isRepeat(generated)) {
-    return fallbackQuestion(style, tone);
+  if (a.includes("zmęcz")) {
+    return "Co najbardziej Cię dziś wyczerpuje?";
   }
 
-  save(generated);
+  if (a.includes("ludzie")) {
+    return "Czy problemem są ludzie czy relacje które tworzysz?";
+  }
 
-  return generated;
+  if (a.includes("praca")) {
+    return "Co w pracy najbardziej zabiera Ci energię?";
+  }
+
+  return "Możesz powiedzieć o tym trochę więcej?";
 }
 
 // =========================
-// PROMPT BUILDER (SYSTEM LOGIC)
+// CONTINUATION LOGIC
 // =========================
 
-function buildPrompt(style, tone, last) {
+function generateContinuation(last) {
 
-  return {
-    style,
-    tone,
-    last
-  };
-}
+  const pool = [
+    "Co teraz jest dla Ciebie najważniejsze?",
+    "Co dziś najbardziej zajmuje Twoje myśli?",
+    "Co próbujesz dziś zrozumieć?"
+  ];
 
-// =========================
-// "AI SIMULATION ENGINE"
-// (tu w przyszłości możesz podpiąć OpenAI)
-// =========================
-
-function generateFromTemplate(ctx) {
-
-  const { style, tone, last } = ctx;
-
-  // BASIC MODE
-  if (style === "basic") {
-
-    if (tone.heavy) {
-      return "Co dziś najbardziej Cię męczy?";
-    }
-
-    return "Co u Ciebie teraz się dzieje?";
-  }
-
-  // DEEP MODE
-  if (style === "deep") {
-
-    if (tone.heavy) {
-      return "Co w Tobie dziś najbardziej Cię obciąża?";
-    }
-
-    if (last.toLowerCase().includes("praca")) {
-      return "Co w Twojej pracy najbardziej Cię dziś zajmuje emocjonalnie?";
-    }
-
-    return "Co dziś najbardziej zmienia Twój sposób myślenia?";
-  }
-
-  return "Co w Tobie teraz najbardziej domaga się uwagi?";
-}
-
-// =========================
-// FALLBACK
-// =========================
-
-function fallbackQuestion(style, tone) {
-
-  if (style === "basic") {
-    return "Jak się dziś czujesz naprawdę?";
-  }
-
-  if (tone.heavy) {
-    return "Co dziś najbardziej Cię przytłacza?";
-  }
-
-  return "Co w Tobie dziś jest niewypowiedziane?";
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // =========================
