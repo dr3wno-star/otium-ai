@@ -1,178 +1,102 @@
-const express = require("express");
-const cors = require("cors");
+import express from "express";
+import cors from "cors";
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM BACKEND v1 RUNNING");
+// ======================
+// SESSION (MVP IN MEMORY)
+// ======================
+let session = {
+  answers: [],
+  vectors: {
+    intensity: 0,
+    expressiveness: 0,
+    analytic: 0,
+    relational: 0,
+  },
+  aura: null,
+};
 
-// ===============================
-// CONFIG
-// ===============================
+// ======================
+// VECTOR ENGINE
+// ======================
+function updateVectors(answers) {
+  let v = {
+    intensity: 0,
+    expressiveness: 0,
+    analytic: 0,
+    relational: 0,
+  };
 
-const MAX_RESONANCE = 5;
-const RECHARGE_TIME = 4 * 60 * 60 * 1000; // 4h
+  answers.forEach((a) => {
+    const text = a.toLowerCase();
 
-// ===============================
-// SIMPLE IN-MEMORY DB (na start)
-// ===============================
+    // INTENSITY
+    if (text.includes("intensywn") || text.includes("spokoj")) v.intensity += 0.5;
+    if (text.includes("emocj") || text.includes("siln")) v.expressiveness += 0.5;
 
-const users = {};
+    // ANALYTIC vs RELATIONAL
+    if (text.includes("analiz") || text.includes("myśl")) v.analytic += 0.6;
+    if (text.includes("ludź") || text.includes("relac")) v.relational += 0.6;
 
-// ===============================
-// HELPERS
-// ===============================
+    // SIMPLE BOOSTERS
+    if (text.includes("obserw")) v.analytic += 0.2;
+    if (text.includes("rozmow")) v.relational += 0.2;
+  });
 
-function getUser(userId) {
-  if (!users[userId]) {
-    users[userId] = {
-      resonance: MAX_RESONANCE,
-      lastRecharge: Date.now(),
-      profile: {
-        relation: 0,
-        thinking: 0,
-        values: 0,
-        communication: 0
-      }
-    };
-  }
-  return users[userId];
+  return v;
 }
 
-// regeneracja rezonansu
-function updateResonance(user) {
-  const now = Date.now();
-  const diff = now - user.lastRecharge;
-
-  const gained = Math.floor(diff / RECHARGE_TIME);
-
-  if (gained > 0) {
-    user.resonance = Math.min(MAX_RESONANCE, user.resonance + gained);
-    user.lastRecharge = now;
+// ======================
+// AURA ENGINE
+// ======================
+function calculateAura(v) {
+  if (v.intensity > 0.6 && v.expressiveness > 0.5) {
+    return "Żywy Umysł";
   }
+
+  if (v.analytic > 0.7 && v.relational < 0.4) {
+    return "Obserwator";
+  }
+
+  if (v.relational > 0.7) {
+    return "Cicha Głębia";
+  }
+
+  return "Bezpośrednia Obecność";
 }
 
-// ===============================
-// ROUTES
-// ===============================
+// ======================
+// API
+// ======================
 
-// INIT / STATUS
-app.post("/api/init", (req, res) => {
-  const { userId } = req.body;
+app.post("/answer", (req, res) => {
+  session.answers.push(req.body.answer);
 
-  const user = getUser(userId);
-  updateResonance(user);
-
-  res.json({
-    resonance: user.resonance,
-    max: MAX_RESONANCE
-  });
-});
-
-// START CHAT SESSION
-app.post("/api/start", (req, res) => {
-  const { userId } = req.body;
-
-  const user = getUser(userId);
-  updateResonance(user);
-
-  if (user.resonance <= 0) {
-    return res.json({
-      ok: false,
-      message: "Brak rezonansu"
-    });
-  }
-
-  user.resonance -= 1;
-
-  res.json({
-    ok: true,
-    resonance: user.resonance
-  });
-});
-
-// CHAT + PROFILING
-app.post("/api/message", (req, res) => {
-  const { userId, message } = req.body;
-
-  const user = getUser(userId);
-
-  const text = (message || "").toLowerCase();
-
-  // ===============================
-  // PROFILING (lekki, nie inwazyjny)
-  // ===============================
-
-  if (text.includes("relac") || text.includes("osob")) {
-    user.profile.relation += 1;
-  }
-
-  if (text.includes("czuję") || text.includes("myśl") || text.includes("analiz")) {
-    user.profile.thinking += 1;
-  }
-
-  if (text.includes("sens") || text.includes("wiar") || text.includes("duch")) {
-    user.profile.values += 1;
-  }
-
-  if (text.includes("rozmaw") || text.includes("lubię gadać")) {
-    user.profile.communication += 1;
-  }
-
-  // ===============================
-  // RESPONSE ENGINE (BEZ PĘTLI)
-  // ===============================
-
-  let reply = "";
-
-  if (user.profile.relation > 2) {
-    reply = "Brzmi jak relacje są dla Ciebie czymś głębszym niż tylko kontakt.";
-  } else if (user.profile.thinking > 2) {
-    reply = "Widzę, że często analizujesz to, co czujesz i myślisz.";
-  } else if (user.profile.values > 2) {
-    reply = "W Twoich wypowiedziach pojawia się potrzeba sensu i czegoś większego.";
-  } else {
-    reply = "Rozumiem. Opowiedz mi trochę więcej o tym.";
+  if (session.answers.length >= 4) {
+    session.vectors = updateVectors(session.answers);
+    session.aura = calculateAura(session.vectors);
   }
 
   res.json({
-    reply
+    step: session.answers.length,
+    done: session.answers.length >= 4,
   });
 });
 
-// ===============================
-// AURA SNAPSHOT (FUTURE)
-// ===============================
-
-app.post("/api/aura", (req, res) => {
-  const { userId } = req.body;
-
-  const user = getUser(userId);
-
-  let aura = "flow";
-
-  const p = user.profile;
-
-  if (p.values > p.thinking && p.values > p.relation) {
-    aura = "spiritual";
-  } else if (p.thinking > p.relation) {
-    aura = "analytical";
-  } else if (p.relation > 2) {
-    aura = "relational";
-  }
-
+app.get("/result", (req, res) => {
   res.json({
-    aura,
-    profile: user.profile
+    vectors: session.vectors,
+    aura: session.aura,
+    firstMessage:
+      session.aura === "Żywy Umysł"
+        ? "Niektóre rozmowy zaczynają się od sposobu myślenia. Co ostatnio naprawdę Cię poruszyło intelektualnie?"
+        : "Czasem najciekawsze rozmowy zaczynają się od prostych rzeczy. Co Cię dziś przyciągnęło tutaj?",
   });
 });
 
-// ===============================
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log("OTIUM RUNNING ON", PORT);
+app.listen(3000, () => {
+  console.log("OTIUM running on port 3000");
 });
