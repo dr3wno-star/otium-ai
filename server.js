@@ -6,16 +6,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM V8 FLOW ENGINE ONLINE");
+console.log("OTIUM V9 CONTEXT ENGINE ONLINE");
 
 // =========================
-// SESSION STATE (simple global)
+// STATE (simple session)
 // =========================
 
-let session = {
-  lastQuestion: "",
-  lastAnswer: "",
-  turn: 0
+let state = {
+  history: [],
+  topic: "neutral",
+  direction: "explore",
+  lastQuestion: ""
 };
 
 // =========================
@@ -23,7 +24,7 @@ let session = {
 // =========================
 
 app.get("/", (req, res) => {
-  res.json({ status: "OTIUM V8 FLOW OK" });
+  res.json({ status: "OTIUM V9 OK" });
 });
 
 // =========================
@@ -36,73 +37,122 @@ app.post("/api/question", (req, res) => {
 
   const last = memory[memory.length - 1] || "";
 
-  const isUserReply = session.lastQuestion.length > 0;
-
-  let question;
-
-  // =========================
-  // FLOW CONTROL
-  // =========================
-
-  if (session.turn === 0) {
-
-    question = "Co sprawiło, że tu jesteś?";
-
-  } else if (session.turn % 2 === 1) {
-
-    // USER JUST ANSWERED → generate follow-up
-
-    question = generateFollowUp(session.lastAnswer);
-
-  } else {
-
-    question = generateContinuation(last);
-  }
-
   // update state
-  session.lastAnswer = last;
-  session.lastQuestion = question;
-  session.turn++;
+  state.history = memory;
 
-  return res.json({ question });
+  const context = buildContext(memory);
+  const topic = detectTopic(context);
+  const direction = detectDirection(context, topic);
+
+  state.topic = topic;
+  state.direction = direction;
+
+  const question = generateQuestion(topic, direction, context, last);
+
+  state.lastQuestion = question;
+
+  return res.json({
+    question,
+    topic,
+    direction,
+    context
+  });
 });
 
 // =========================
-// FOLLOW-UP LOGIC
+// CONTEXT BUILDER
 // =========================
 
-function generateFollowUp(answer) {
+function buildContext(memory) {
 
-  const a = answer.toLowerCase();
-
-  if (a.includes("zmęcz")) {
-    return "Co najbardziej Cię dziś wyczerpuje?";
-  }
-
-  if (a.includes("ludzie")) {
-    return "Czy problemem są ludzie czy relacje które tworzysz?";
-  }
-
-  if (a.includes("praca")) {
-    return "Co w pracy najbardziej zabiera Ci energię?";
-  }
-
-  return "Możesz powiedzieć o tym trochę więcej?";
+  return memory.join(" ").toLowerCase();
 }
 
 // =========================
-// CONTINUATION LOGIC
+// TOPIC DETECTION
 // =========================
 
-function generateContinuation(last) {
+function detectTopic(text) {
 
-  const pool = [
-    "Co teraz jest dla Ciebie najważniejsze?",
-    "Co dziś najbardziej zajmuje Twoje myśli?",
+  if (text.includes("praca") || text.includes("szef") || text.includes("zawód")) {
+    return "work";
+  }
+
+  if (text.includes("ludzie") || text.includes("relacj")) {
+    return "social";
+  }
+
+  if (text.includes("zmęcz") || text.includes("dość") || text.includes("przytłocz")) {
+    return "fatigue";
+  }
+
+  if (text.includes("czuję") || text.includes("myśl") || text.includes("wewnętrz")) {
+    return "reflection";
+  }
+
+  return "neutral";
+}
+
+// =========================
+// DIRECTION ENGINE
+// =========================
+
+function detectDirection(context, topic) {
+
+  if (topic === "fatigue") return "soothe";
+  if (topic === "reflection") return "deepen";
+  if (topic === "social") return "clarify";
+  if (topic === "work") return "analyze";
+
+  return "explore";
+}
+
+// =========================
+// QUESTION ENGINE (CORE)
+// =========================
+
+function generateQuestion(topic, direction, context, last) {
+
+  // WORK
+  if (topic === "work") {
+
+    if (direction === "analyze") {
+      return "Co dokładnie w pracy najbardziej Cię dziś obciąża?";
+    }
+  }
+
+  // SOCIAL
+  if (topic === "social") {
+
+    if (direction === "clarify") {
+      return "Czy trudniejsze są relacje czy oczekiwania wobec nich?";
+    }
+  }
+
+  // FATIGUE
+  if (topic === "fatigue") {
+
+    if (direction === "soothe") {
+      return "Co najbardziej odbiera Ci dziś energię?";
+    }
+  }
+
+  // REFLECTION
+  if (topic === "reflection") {
+
+    if (direction === "deepen") {
+      return "Co w Twoich myślach dziś najbardziej się powtarza?";
+    }
+  }
+
+  // DEFAULT FLOW
+  const fallback = [
+    "Co teraz najbardziej domaga się Twojej uwagi?",
+    "Co w tym momencie jest dla Ciebie najważniejsze?",
     "Co próbujesz dziś zrozumieć?"
   ];
 
-  return pool[Math.floor(Math.random() * pool.length)];
+  return fallback[Math.floor(Math.random() * fallback.length)];
 }
 
 // =========================
