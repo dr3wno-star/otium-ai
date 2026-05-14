@@ -6,97 +6,62 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM V3 STABLE DIALOG");
+console.log("OTIUM FINAL STABLE MODE");
 
 // =========================
-// STATE (NA SERWERZE)
-// =========================
-
-let state = {
-  lastAIResponse: "",
-  lastType: ""
-};
-
-// =========================
-// MAIN
+// MAIN ENDPOINT
 // =========================
 
 app.post("/api/question", (req, res) => {
 
   const memory = req.body.memory || [];
 
-  const lastUser = (memory[memory.length - 1] || "").toLowerCase();
-  const context = memory.join(" ").toLowerCase();
+  const conversation = memory.join("\n");
 
-  const reply = generate(lastUser, context);
+  const last = memory[memory.length - 1] || "";
 
-  // 🔴 HARD ANTI-REPEAT (KLUCZOWE)
-  if (reply.type === state.lastType) {
-    const fallback = neutralVariation();
-    state.lastType = "fallback";
-    state.lastAIResponse = fallback;
+  const reply = generateReply(conversation, last);
 
-    return res.json({ question: fallback });
-  }
-
-  state.lastType = reply.type;
-  state.lastAIResponse = reply.text;
-
-  return res.json({ question: reply.text });
+  return res.json({
+    question: reply
+  });
 });
 
 // =========================
-// GENERATOR
+// SINGLE RESPONSE ENGINE (NO LOOPS)
 // =========================
 
-function generate(lastUser, context) {
+function generateReply(conversation, lastUser) {
 
-  // RELACJE
-  if (context.includes("relacj") || context.includes("osob") || context.includes("wiar")) {
-    return {
-      type: "relacje",
-      text: "Brzmi jak temat relacji, w których ważna jest głębia i autentyczność, nie tylko powierzchowność."
-    };
+  const text = conversation.toLowerCase();
+
+  // 🔥 KLUCZ: NIE MA JUŻ „TYPE SYSTEMU”
+  // tylko styl odpowiedzi zależny od kontekstu
+
+  if (text.includes("relacj") || text.includes("osob") || text.includes("wiar")) {
+    return "Brzmi jak szukasz relacji opartej na czymś głębszym niż codzienność — bardziej o więzi i sensie niż powierzchowności. Co w takim połączeniu byłoby dla Ciebie najważniejsze?";
   }
 
-  // GAMING
-  if (context.includes("gra") || context.includes("craft") || context.includes("budow")) {
-    return {
-      type: "gaming",
-      text: "Wygląda na to, że w grach najbardziej cenisz tworzenie i swobodę działania."
-    };
+  if (text.includes("gra") || text.includes("craft") || text.includes("budow")) {
+    return "Wygląda na to, że w grach najbardziej pociąga Cię tworzenie i swoboda działania. To bardziej forma relaksu czy coś, co daje Ci poczucie sprawczości?";
   }
 
-  // REFLEKSJA
-  if (context.includes("czuję") || context.includes("myśl") || context.includes("życie")) {
-    return {
-      type: "reflection",
-      text: "Słychać w tym moment refleksji i porządkowania myśli."
-    };
+  if (text.includes("czuję") || text.includes("myśl") || text.includes("życie")) {
+    return "Słychać w tym moment, w którym próbujesz coś w sobie uporządkować. Co teraz najbardziej wybija się na pierwszy plan?";
   }
 
-  // DEFAULT
-  return {
-    type: "neutral",
-    text: "Co teraz najbardziej dominuje w Twoich myślach?"
-  };
-}
-
-// =========================
-// FALLBACK VARIATION (NIE POWTARZA TEGO SAMEGO)
-// =========================
-
-function neutralVariation() {
-
-  const pool = [
-    "Co teraz jest dla Ciebie najważniejsze w tym wszystkim?",
-    "Jak byś opisał to, co teraz w Tobie dominuje?",
-    "Co najbardziej przyciąga Twoją uwagę w tej chwili?"
+  // DEFAULT (WAŻNE: BEZ POWTARZANIA TEGO SAMEGO STYLU)
+  const fallback = [
+    "Co teraz najbardziej zajmuje Twoją uwagę?",
+    "Co w tym momencie jest dla Ciebie najważniejsze?",
+    "Jak byś opisał to, co teraz w Tobie dominuje?"
   ];
 
-  return pool[Math.floor(Math.random() * pool.length)];
+  return fallback[Math.floor(Math.random() * fallback.length)];
 }
 
+// =========================
+// START
 // =========================
 
 const PORT = process.env.PORT || 3000;
