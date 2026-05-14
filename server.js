@@ -1,29 +1,29 @@
-import express from "express";
-import cors from "cors";
+const express = require("express");
+const cors = require("cors");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM AI V6 ONLINE");
+console.log("OTIUM V6 RUNNING");
 
 // =========================
-// MEMORY (simple in-memory session)
+// MEMORY
 // =========================
 
 let questionHistory = [];
 
 // =========================
-// ENTRY
+// HEALTH CHECK
 // =========================
 
 app.get("/", (req, res) => {
-  res.json({ status: "OTIUM V6 RUNNING" });
+  res.json({ status: "OTIUM OK" });
 });
 
 // =========================
-// MAIN AI ENDPOINT
+// MAIN AI
 // =========================
 
 app.post("/api/question", (req, res) => {
@@ -35,64 +35,32 @@ app.post("/api/question", (req, res) => {
   const style = detectStyle(memory);
   const tone = detectTone(memory);
 
-  const question = generateQuestion(last, memory, tone, style);
+  const question = generateQuestion(style, tone);
 
-  res.json({
-    question,
-    style,
-    tone
-  });
+  return res.json({ question });
 });
 
 // =========================
-// STYLE DETECTION (NOT IQ — COMMUNICATION DEPTH)
+// STYLE
 // =========================
 
 function detectStyle(memory) {
 
   const text = memory.join(" ").toLowerCase();
 
-  let score = {
-    basic: 0,
-    deep: 0,
-    intuitive: 0
-  };
+  let basic = 0;
+  let deep = 0;
 
-  // BASIC signals
-  if (
-    text.includes("co") ||
-    text.includes("jak") ||
-    text.length < 40
-  ) {
-    score.basic++;
-  }
+  if (text.length < 40) basic++;
+  if (text.includes("czuję") || text.includes("myśl")) deep++;
+  if (text.includes("dlaczego")) deep++;
 
-  // DEEP signals
-  if (
-    text.includes("czuję") ||
-    text.includes("myśl") ||
-    text.includes("dlaczego")
-  ) {
-    score.deep++;
-  }
-
-  // INTUITIVE signals
-  if (
-    text.includes("sens") ||
-    text.includes("istnie") ||
-    text.includes("wewnątrz")
-  ) {
-    score.intuitive++;
-  }
-
-  const max = Object.entries(score)
-    .sort((a,b) => b[1] - a[1])[0][0];
-
-  return max;
+  if (deep > basic) return "deep";
+  return "basic";
 }
 
 // =========================
-// TONE DETECTION
+// TONE
 // =========================
 
 function detectTone(memory) {
@@ -101,76 +69,61 @@ function detectTone(memory) {
 
   return {
     heavy: text.includes("zmęcz") || text.includes("dość"),
-    calm: text.includes("cisz") || text.includes("spokój"),
-    social: text.includes("ludzie") || text.includes("rozmow"),
-    reflective: text.includes("czuję") || text.includes("myśl")
+    calm: text.includes("cisz") || text.includes("spokój")
   };
 }
 
 // =========================
-// ANTI-REPEAT SYSTEM (24h simulated via session memory)
+// GENERATOR
 // =========================
 
-function isRepeat(question) {
-  return questionHistory.includes(question);
-}
+function generateQuestion(style, tone) {
 
-function saveQuestion(question) {
-  questionHistory.push(question);
+  const pool = [];
 
-  // soft limit memory
-  if (questionHistory.length > 50) {
-    questionHistory.shift();
-  }
-}
-
-// =========================
-// CORE GENERATOR
-// =========================
-
-function generateQuestion(last, memory, tone, style) {
-
-  const base = buildPool(style, tone);
-
-  const available = base.filter(q => !isRepeat(q));
-
-  const pool = available.length ? available : base;
-
-  const selected = pool[
-    Math.floor(Math.random() * pool.length)
-  ];
-
-  saveQuestion(selected);
-
-  return selected;
-}
-
-// =========================
-// QUESTION POOLS BY STYLE
-// =========================
-
-function buildPool(style, tone) {
-
-  // BASIC MODE
   if (style === "basic") {
 
     if (tone.heavy) {
-      return [
+      pool.push(
         "Co dziś Cię męczy?",
-        "Co jest dla Ciebie dziś najtrudniejsze?"
-      ];
+        "Co jest dla Ciebie dziś trudne?"
+      );
+    } else {
+      pool.push(
+        "Jak się dziś czujesz?",
+        "Co u Ciebie słychać?",
+        "Co robisz teraz?"
+      );
     }
-
-    return [
-      "Co dziś u Ciebie słychać?",
-      "Jak się dziś czujesz?",
-      "Co robisz teraz?"
-    ];
   }
 
-  // DEEP MODE
   if (style === "deep") {
 
     if (tone.heavy) {
-      return [
-        "Co najbardziej
+      pool.push(
+        "Co najbardziej Cię dziś obciąża?",
+        "Co w Tobie jest przeciążone?"
+      );
+    } else {
+      pool.push(
+        "Co dziś wpływa na Twój nastrój?",
+        "Co się w Tobie zmienia?",
+        "Co próbujesz dziś zrozumieć?"
+      );
+    }
+  }
+
+  const q = pool[Math.floor(Math.random() * pool.length)];
+
+  return q || "Co teraz czujesz?";
+}
+
+// =========================
+// START
+// =========================
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("RUNNING ON PORT", PORT);
+});
