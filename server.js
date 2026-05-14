@@ -2,11 +2,12 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 // ======================
-// SESSION (MVP IN MEMORY)
+// SESSION (MVP)
 // ======================
 let session = {
   answers: [],
@@ -20,7 +21,7 @@ let session = {
 };
 
 // ======================
-// VECTOR ENGINE
+// VECTOR ENGINE v1.1
 // ======================
 function updateVectors(answers) {
   let v = {
@@ -31,41 +32,53 @@ function updateVectors(answers) {
   };
 
   answers.forEach((a) => {
-    const text = a.toLowerCase();
+    const t = a.toLowerCase();
 
-    // INTENSITY
-    if (text.includes("intensywn") || text.includes("spokoj")) v.intensity += 0.5;
-    if (text.includes("emocj") || text.includes("siln")) v.expressiveness += 0.5;
+    // INTENSITY (energia, emocje, ważność)
+    if (/(ważn|siln|mocn|intens|głęb|porusza)/.test(t)) v.intensity += 0.6;
 
-    // ANALYTIC vs RELATIONAL
-    if (text.includes("analiz") || text.includes("myśl")) v.analytic += 0.6;
-    if (text.includes("ludź") || text.includes("relac")) v.relational += 0.6;
+    // EXPRESSIVENESS (emocje, dusza, odczucia)
+    if (/(czuję|emocj|serc|dusza|wewnętrz|nietypow)/.test(t))
+      v.expressiveness += 0.6;
 
-    // SIMPLE BOOSTERS
-    if (text.includes("obserw")) v.analytic += 0.2;
-    if (text.includes("rozmow")) v.relational += 0.2;
+    // ANALYTIC (myślenie, analiza, logika)
+    if (/(myśl|rozum|analiz|logik|dlacz|zrozum)/.test(t))
+      v.analytic += 0.6;
+
+    // RELATIONAL (ludzie, rozmowy, relacje)
+    if (/(ludź|osob|relac|rozmow|kontakt|ktoś)/.test(t))
+      v.relational += 0.6;
   });
 
   return v;
 }
 
 // ======================
-// AURA ENGINE
+// AURA ENGINE v1.1
 // ======================
 function calculateAura(v) {
-  if (v.intensity > 0.6 && v.expressiveness > 0.5) {
-    return "Żywy Umysł";
-  }
+  const sum = v.intensity + v.expressiveness + v.analytic + v.relational;
 
-  if (v.analytic > 0.7 && v.relational < 0.4) {
+  // fallback (KLUCZOWE)
+  if (sum === 0) return "Obserwator";
+
+  if (v.analytic > 1.0 && v.relational < 0.6) {
     return "Obserwator";
   }
 
-  if (v.relational > 0.7) {
+  if (v.relational > 1.0 && v.expressiveness < 0.8) {
     return "Cicha Głębia";
   }
 
-  return "Bezpośrednia Obecność";
+  if (v.intensity > 1.0 && v.expressiveness > 0.8) {
+    return "Żywy Umysł";
+  }
+
+  if (v.expressiveness > 1.2) {
+    return "Bezpośrednia Obecność";
+  }
+
+  return "Żywy Umysł";
 }
 
 // ======================
@@ -73,7 +86,11 @@ function calculateAura(v) {
 // ======================
 
 app.post("/answer", (req, res) => {
-  session.answers.push(req.body.answer);
+  const answer = req.body?.answer || "";
+
+  console.log("ANSWER:", answer);
+
+  session.answers.push(answer);
 
   if (session.answers.length >= 4) {
     session.vectors = updateVectors(session.answers);
@@ -89,14 +106,18 @@ app.post("/answer", (req, res) => {
 app.get("/result", (req, res) => {
   res.json({
     vectors: session.vectors,
-    aura: session.aura,
+    aura: session.aura || "Obserwator",
     firstMessage:
       session.aura === "Żywy Umysł"
-        ? "Niektóre rozmowy zaczynają się od sposobu myślenia. Co ostatnio naprawdę Cię poruszyło intelektualnie?"
-        : "Czasem najciekawsze rozmowy zaczynają się od prostych rzeczy. Co Cię dziś przyciągnęło tutaj?",
+        ? "Są rozmowy, które zaczynają się od sposobu myślenia. Co ostatnio naprawdę Cię poruszyło?"
+        : session.aura === "Cicha Głębia"
+        ? "Nie wszystko trzeba mówić wprost. Co czujesz, kiedy rozmawiasz z kimś nowym?"
+        : "Co sprawiło, że trafiłeś właśnie tutaj?",
   });
 });
 
-app.listen(3000, () => {
-  console.log("OTIUM running on port 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`OTIUM running on port ${PORT}`);
 });
