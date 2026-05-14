@@ -6,70 +6,114 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM REAL TALK ENGINE V1");
+console.log("OTIUM REAL TALK BACKEND V2");
 
 // =========================
 // MAIN ENDPOINT
 // =========================
 
-app.post("/api/question", async (req, res) => {
+app.post("/api/question", (req, res) => {
 
   const memory = req.body.memory || [];
 
-  const conversation = memory.join("\n");
-
-  const response = generateReply(conversation);
+  const reply = generateReply(memory);
 
   return res.json({
-    question: response
+    question: reply
   });
 });
 
 // =========================
-// CORE LOGIC (NO RULE LOOPING)
+// CORE LOGIC
 // =========================
 
-function generateReply(conversation) {
+function generateReply(memory) {
 
-  const last = conversation.split("\n").slice(-1)[0] || "";
+  const last = (memory[memory.length - 1] || "").toLowerCase();
+  const context = memory.join(" ").toLowerCase();
 
-  // prosta, stabilna reakcja zamiast "engine"
-  return buildResponse(last, conversation);
+  // =========================
+  // 1. RELACJE / DUCHOWOŚĆ
+  // =========================
+  if (
+    context.includes("relacj") ||
+    context.includes("osob") ||
+    context.includes("wiar") ||
+    context.includes("duch")
+  ) {
+    return respondRelacje(context);
+  }
+
+  // =========================
+  // 2. GAMING / TWORZENIE
+  // =========================
+  if (
+    context.includes("gra") ||
+    context.includes("craft") ||
+    context.includes("budow") ||
+    context.includes("pływ") ||
+    context.includes("morze")
+  ) {
+    return respondGaming(context);
+  }
+
+  // =========================
+  // 3. REFLEKSJA / EMOCJE
+  // =========================
+  if (
+    context.includes("czuję") ||
+    context.includes("myśl") ||
+    context.includes("życie") ||
+    context.includes("ważne")
+  ) {
+    return respondReflection(context);
+  }
+
+  // =========================
+  // DEFAULT
+  // =========================
+  return respondNeutral();
 }
 
 // =========================
-// RESPONSE BUILDER
+// RESPONSE BLOCKS
 // =========================
 
-function buildResponse(last, full) {
+function respondRelacje(context) {
 
-  const text = full.toLowerCase();
+  const pool = [
+    "Brzmi jak szukasz relacji, w której ważna jest bliskość i wspólne wartości, nie tylko powierzchowność.",
+    "Wygląda na to, że zależy Ci na kimś, z kim możesz dzielić coś głębszego niż codzienność.",
+    "To bardziej potrzeba więzi opartej na zrozumieniu niż samej obecności drugiej osoby."
+  ];
 
-  // RELACJE / DUCHOWOŚĆ
-  if (text.includes("relacj") || text.includes("osob") || text.includes("wiara")) {
-    return "Brzmi jak szukasz czegoś głębszego w relacjach — bardziej sensu i bliskości niż powierzchowności. Co dla Ciebie oznacza taka relacja w praktyce?";
-  }
-
-  // GAMING / ŚWIATY WIRTUALNE
-  if (text.includes("gra") || text.includes("craft") || text.includes("budow")) {
-    return "Wygląda na to, że lubisz w grach swobodę tworzenia i kontrolę nad światem. To bardziej forma relaksu czy wyrażania siebie?";
-  }
-
-  // EMOCJE / REFLEKSJA
-  if (text.includes("czuję") || text.includes("myśl") || text.includes("życie")) {
-    return "Słyszę w tym trochę refleksji — jakbyś próbował poukładać coś w sobie. Co teraz najbardziej Ci się w tym miesza?";
-  }
-
-  // DEFAULT (ważne: NIE pytania w kółko)
-  return "Opowiedz mi trochę więcej o tym — chcę lepiej zrozumieć Twój punkt widzenia.";
+  return pick(pool);
 }
 
-// =========================
-// START
-// =========================
+function respondGaming(context) {
 
-const PORT = process.env.PORT || 3000;
+  const pool = [
+    "Wygląda na to, że w grach najbardziej cenisz swobodę tworzenia i budowania własnego świata.",
+    "To brzmi jak coś, co daje Ci poczucie kontroli i przestrzeni do działania.",
+    "Chyba ważniejsze od samej gry jest dla Ciebie to, co możesz w niej stworzyć."
+  ];
 
-app.listen(PORT, () => {
-  console.log("RUNNING ON PORT", PORT);
-});
+  return pick(pool);
+}
+
+function respondReflection(context) {
+
+  const pool = [
+    "Brzmi jak moment, w którym próbujesz coś w sobie poukładać.",
+    "To wygląda na refleksję nad tym, co teraz naprawdę jest dla Ciebie ważne.",
+    "Słychać w tym potrzebę zatrzymania się i zrozumienia siebie."
+  ];
+
+  return pick(pool);
+}
+
+function respondNeutral() {
+
+  const pool = [
+    "Co teraz najbardziej zajmuje Twoją uwagę?",
+    "Co w tym momencie jest dla Ciebie najważniejsze?",
