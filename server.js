@@ -6,14 +6,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM DIALOG STYLE ENGINE V1");
+console.log("OTIUM HARD FIX ENGINE");
 
 // =========================
 // STATE
 // =========================
 
 let state = {
-  lastMode: null
+  lastQuestionType: null,
+  lastQuestionText: null
 };
 
 // =========================
@@ -25,73 +26,65 @@ app.post("/api/question", (req, res) => {
   const memory = req.body.memory || [];
   const last = (memory[memory.length - 1] || "").toLowerCase();
 
-  const response = generateResponse(last);
+  const response = generate(last);
+
+  // 🔴 HARD BLOCK DUPLICATES
+  if (response.type === state.lastQuestionType) {
+    return res.json({
+      question: fallback(last),
+      type: "fallback"
+    });
+  }
+
+  state.lastQuestionType = response.type;
+  state.lastQuestionText = response.question;
 
   return res.json(response);
 });
 
 // =========================
-// CORE ENGINE
+// CORE GENERATION (NO LOOPING TYPES)
 // =========================
 
-function generateResponse(text) {
+function generate(text) {
 
-  const t = text;
-
-  // --- RELACJE / DUCHOWOŚĆ ---
-  if (t.includes("wiara") || t.includes("duch") || t.includes("relacj")) {
-
-    return reflectExpand();
+  // RELACJE
+  if (text.includes("relacj") || text.includes("osob")) {
+    return {
+      type: "reflection",
+      question: "Co w relacjach jest dla Ciebie dziś najważniejsze — bliskość czy zrozumienie?"
+    };
   }
 
-  // --- GAMING / ZAINTERESOWANIA ---
-  if (t.includes("gra") || t.includes("gram") || t.includes("craft")) {
-
-    return expandShift();
+  // DUCHOWOŚĆ
+  if (text.includes("wiara") || text.includes("duch")) {
+    return {
+      type: "depth",
+      question: "Jaką rolę wiara lub duchowość odgrywa w Twoim codziennym życiu?"
+    };
   }
 
-  // --- TOŻSAMOŚĆ / RELACJE ---
-  if (t.includes("osob") || t.includes("kto") || t.includes("ludzie")) {
-
-    return reflectClarify();
+  // GAMING / ZAINTERESOWANIA
+  if (text.includes("gra") || text.includes("gram") || text.includes("craft")) {
+    return {
+      type: "experience",
+      question: "Co w tej aktywności daje Ci największe poczucie swobody?"
+    };
   }
 
-  // DEFAULT
-  return mixedResponse();
+  // DEFAULT (ważne: NIE powtarzamy struktury „czy bardziej…”)
+  return {
+    type: "general",
+    question: "Co teraz najbardziej dominuje w Twoich myślach?"
+  };
 }
 
 // =========================
-// DIALOG MODES
+// FALLBACK (anti-loop safety)
 // =========================
 
-function reflectExpand() {
-  return {
-    question: "Brzmi jak szukasz relacji opartej na czymś głębszym niż codzienność — bardziej wspólnych wartościach i sensie. Co w tym jest dla Ciebie najważniejsze?"
-  };
-}
-
-function expandShift() {
-  return {
-    question: "Wygląda na to, że w grach ważne jest dla Ciebie tworzenie i swoboda. Czy to coś, czego brakuje Ci też w realnym życiu?"
-  };
-}
-
-function reflectClarify() {
-  return {
-    question: "Czy bardziej chodzi Ci o znalezienie osoby podobnej do Ciebie, czy raczej kogoś kto Cię uzupełnia?"
-  };
-}
-
-function mixedResponse() {
-  const pool = [
-    "Co teraz najbardziej zajmuje Twoje myśli?",
-    "Co w tym momencie jest dla Ciebie najważniejsze?",
-    "Co próbujesz dziś zrozumieć o sobie?"
-  ];
-
-  return {
-    question: pool[Math.floor(Math.random() * pool.length)]
-  };
+function fallback(text) {
+  return "Chcę lepiej zrozumieć, co jest dla Ciebie najważniejsze w tym wszystkim.";
 }
 
 // =========================
