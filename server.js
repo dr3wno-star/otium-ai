@@ -6,25 +6,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log("OTIUM V10 ANTI-LOOP ENGINE");
+console.log("OTIUM V11 MEANING ENGINE");
 
 // =========================
-// GLOBAL STATE
+// STATE
 // =========================
 
 let state = {
-  lastTopic: null,
-  topicCount: 0,
-  lastQuestion: null
+  lastMeaning: "",
+  lastQuestion: ""
 };
-
-// =========================
-// HEALTH
-// =========================
-
-app.get("/", (req, res) => {
-  res.json({ status: "OTIUM V10 OK" });
-});
 
 // =========================
 // MAIN
@@ -35,102 +26,75 @@ app.post("/api/question", (req, res) => {
   const memory = req.body.memory || [];
   const last = (memory[memory.length - 1] || "").toLowerCase();
 
-  const topic = detectTopic(last);
+  const meaning = extractMeaning(last);
 
-  updateTopicState(topic);
+  const question = generateFromMeaning(meaning);
 
-  const question = generate(topic);
-
-  // anti-repeat hard block
   if (question === state.lastQuestion) {
     return res.json({
-      question: fallback(topic)
+      question: fallback()
     });
   }
 
   state.lastQuestion = question;
 
-  return res.json({ question });
+  return res.json({
+    question,
+    meaning
+  });
 });
 
 // =========================
-// TOPIC DETECTION
+// MEANING ENGINE (CORE)
 // =========================
 
-function detectTopic(text) {
+function extractMeaning(text) {
 
-  if (text.includes("relacj") || text.includes("ludzie")) return "social";
-  if (text.includes("praca") || text.includes("szef")) return "work";
-  if (text.includes("gra") || text.includes("gram")) return "gaming";
-  if (text.includes("czuję") || text.includes("myśl")) return "reflection";
-
-  return "general";
-}
-
-// =========================
-// TOPIC STATE ENGINE
-// =========================
-
-function updateTopicState(topic) {
-
-  if (state.lastTopic === topic) {
-    state.topicCount++;
-  } else {
-    state.lastTopic = topic;
-    state.topicCount = 1;
-  }
-}
-
-// =========================
-// QUESTION GENERATOR
-// =========================
-
-function generate(topic) {
-
-  const bank = {
-
-    social: [
-      "Co w relacjach z ludźmi jest dla Ciebie najtrudniejsze?",
-      "Czy bardziej męczą Cię ludzie czy oczekiwania wobec nich?"
-    ],
-
-    work: [
-      "Co w pracy najbardziej Cię obciąża?",
-      "Czy to obowiązki czy ludzie w pracy są trudniejsi?"
-    ],
-
-    gaming: [
-      "Co sprawia, że ta gra Cię teraz wciąga?",
-      "Co najbardziej Cię w niej angażuje?"
-    ],
-
-    reflection: [
-      "Co dziś najbardziej zajmuje Twoje myśli?",
-      "Co próbujesz dziś zrozumieć w sobie?"
-    ],
-
-    general: [
-      "Co teraz najbardziej domaga się Twojej uwagi?",
-      "Co jest dla Ciebie dziś najważniejsze?"
-    ]
+  return {
+    gaming_identity: text.includes("gra") || text.includes("craft") || text.includes("budow"),
+    relationship_need: text.includes("osob") || text.includes("akcept") || text.includes("relacj"),
+    social_search: text.includes("ludzie") || text.includes("pozn"),
+    escape: text.includes("uciecz") || text.includes("świat"),
+    creativity: text.includes("tworz") || text.includes("budow")
   };
+}
 
-  let options = bank[topic];
+// =========================
+// QUESTION GENERATOR (SEMANTIC)
+// =========================
 
-  // 🔥 ANTI-STUCK RULE
-  if (state.topicCount > 2) {
-    options = bank.general;
+function generateFromMeaning(m) {
+
+  // 🔥 RELATIONSHIP + IDENTITY
+  if (m.relationship_need && m.gaming_identity) {
+    return "Czy czujesz, że Twoje zainteresowania są częścią tego kim jesteś w relacjach z ludźmi?";
   }
 
-  return options[Math.floor(Math.random() * options.length)];
+  // GAMING + CREATIVITY
+  if (m.gaming_identity && m.creativity) {
+    return "Co w budowaniu i tworzeniu w grach daje Ci największe poczucie sensu?";
+  }
+
+  // SOCIAL SEARCH
+  if (m.social_search) {
+    return "Jakiego rodzaju relacji dziś najbardziej szukasz?";
+  }
+
+  // ESCAPE
+  if (m.escape) {
+    return "Przed czym najbardziej uciekasz w takie światy?";
+  }
+
+  // DEFAULT
+  return "Co w tym wszystkim jest dla Ciebie dziś najważniejsze?";
 }
 
 // =========================
 // FALLBACK
 // =========================
 
-function fallback(topic) {
-  return "Co w tym jest dla Ciebie najważniejsze?";
+function fallback() {
+  return "Co teraz najbardziej czujesz w tej sytuacji?";
 }
 
 // =========================
