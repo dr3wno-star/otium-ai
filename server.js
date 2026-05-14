@@ -4,143 +4,100 @@ import cors from "cors";
 const app = express();
 
 app.use(cors());
-
 app.use(express.json());
 
-console.log("OTIUM AI ONLINE");
+console.log("OTIUM CORE V2 ONLINE");
 
 // ROOT
 app.get("/", (req, res) => {
-
-  res.json({
-    status: "OTIUM ONLINE"
-  });
-
+  res.json({ status: "OTIUM OK" });
 });
 
-// GET TEST
+// API CHECK
 app.get("/api/question", (req, res) => {
-
-  res.json({
-    status: "API WORKS"
-  });
-
+  res.json({ status: "OK" });
 });
 
-// AI FLOW
+// =========================
+// CORE AI LOGIC
+// =========================
+
 app.post("/api/question", (req, res) => {
 
-  const memory =
-    req.body.memory || [];
+  const memory = req.body.memory || [];
+  const last = (memory[memory.length - 1] || "").toLowerCase();
 
-  const last =
-    (
-      memory[memory.length - 1] || ""
-    ).toLowerCase();
+  const tone = analyzeTone(last, memory);
 
-  let question =
-    "Co dziś najbardziej czujesz?";
+  const question = generateQuestion(last, memory, tone);
 
-  // =========================
-  // DYNAMIC FLOW
-  // =========================
-
-  if (
-    last.includes("zmęcz") ||
-    last.includes("mam dość") ||
-    last.includes("wyczerp")
-  ) {
-
-    question =
-      "Co najmocniej odbiera Ci dziś energię?";
-  }
-
-  else if (
-    last.includes("sam") ||
-    last.includes("samot")
-  ) {
-
-    question =
-      "Czy cisza pomaga Ci dziś, czy bardziej boli?";
-  }
-
-  else if (
-    last.includes("spokój")
-  ) {
-
-    question =
-      "Gdzie ostatnio poczułeś prawdziwy spokój?";
-  }
-
-  else if (
-    last.includes("ludzie")
-  ) {
-
-    question =
-      "Za czym najbardziej tęsknisz w rozmowach z ludźmi?";
-  }
-
-  else if (
-    memory.length <= 1
-  ) {
-
-    question =
-      "Co sprawiło, że zatrzymałeś się dziś właśnie tutaj?";
-  }
-
-  else if (
-    memory.length === 2
-  ) {
-
-    question =
-      "Jakiego rodzaju obecności dziś szukasz?";
-  }
-
-  else if (
-    memory.length === 3
-  ) {
-
-    question =
-      "Przy kim czujesz się najbardziej sobą?";
-  }
-
-  else {
-
-    const pool = [
-
-      "Co ostatnio było dla Ciebie zbyt ciężkie do wypowiedzenia?",
-
-      "Czego najbardziej brakuje Ci w codziennych rozmowach?",
-
-      "Czy łatwo pokazujesz innym swoje prawdziwe emocje?",
-
-      "Za jakim spokojem najbardziej tęsknisz?",
-
-      "Jak wyglądałby idealny wieczór rozmowy?"
-    ];
-
-    question =
-      pool[
-        Math.floor(
-          Math.random() * pool.length
-        )
-      ];
-  }
-
-  res.json({
-    question
-  });
+  res.json({ question, tone });
 
 });
 
-const PORT =
-  process.env.PORT || 3000;
+// =========================
+// SIMPLE "AI LAYER"
+// =========================
+
+function analyzeTone(last, memory) {
+
+  let score = {
+    calm: 0,
+    heavy: 0,
+    social: 0,
+    reflective: 0
+  };
+
+  const text = memory.join(" ").toLowerCase();
+
+  if (text.includes("zmęcz") || text.includes("dość")) score.heavy++;
+  if (text.includes("sam") || text.includes("cisz")) score.calm++;
+  if (text.includes("ludzie") || text.includes("rozmow")) score.social++;
+  if (text.includes("czuję") || text.includes("myśl")) score.reflective++;
+
+  return score;
+}
+
+function generateQuestion(last, memory, tone) {
+
+  const len = memory.length;
+
+  // --- EARLY STAGE
+  if (len <= 1) {
+    return "Co sprawiło, że zatrzymałeś się właśnie tutaj?";
+  }
+
+  // --- EMOTION BASED
+  if (tone.heavy > 0) {
+    return "Co dziś najbardziej Cię obciąża — myśl, sytuacja czy człowiek?";
+  }
+
+  if (tone.calm > 0) {
+    return "Czy ta cisza jest dla Ciebie spokojem czy ucieczką?";
+  }
+
+  if (tone.social > 0) {
+    return "Jakich rozmów ostatnio Ci brakuje najbardziej?";
+  }
+
+  if (tone.reflective > 0) {
+    return "Czy Twoje myśli dziś bardziej Cię prowadzą czy gubią?";
+  }
+
+  // --- DEFAULT FLOW
+  const pool = [
+    "Co w Tobie teraz najbardziej domaga się uwagi?",
+    "Jakiego rodzaju obecności dziś szukasz?",
+    "Co ostatnio zmieniło sposób, w jaki myślisz?",
+    "Czy czujesz, że coś w Tobie się domyka?",
+    "Co dziś jest niewypowiedziane?"
+  ];
+
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-
-  console.log(
-    "RUNNING ON PORT",
-    PORT
-  );
-
+  console.log("RUNNING ON", PORT);
 });
