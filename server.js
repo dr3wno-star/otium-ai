@@ -7,7 +7,8 @@ app.use(express.json());
 
 let userSession = {
     vector: { intensity: 0.5, expressiveness: 0.5, analytic: 0.5, relational: 0.5 },
-    currentAura: "OBSERWATOR"
+    currentAura: "OBSERWATOR",
+    lastResponse: ""
 };
 
 const auraColors = {
@@ -29,14 +30,21 @@ app.post('/chat', (req, res) => {
     const text = message.toLowerCase();
     let reply = "";
     
-    if (text.includes('inteligent') || text.includes('mądr')) {
+    // LOGIKA REZONANSU - PRECYZYJNE ŚCIEŻKI
+    if (text.includes('empati') || text.includes('czuł') || text.includes('blisko')) {
+        reply = "Empatia to najwyższa forma inteligencji serca. Skoro jej szukasz, powiedz – czy wolisz, by ta druga osoba była Twoim lustrem, czy raczej Twoim dopełnieniem?";
+        userSession.vector.relational += 0.15;
+    } 
+    else if (text.includes('inteligent') || text.includes('mądr') || text.includes('bystr')) {
         reply = "Inteligencja to rzadkie światło, które nadaje sens tej ciszy. Powiedz, czy ta błyskotliwość ma być chłodna i analityczna, czy raczej pełna empatii?";
-        userSession.vector.analytic += 0.1;
-    } else if (text.includes('spokój') || text.includes('ciepł') || text.includes('dobr')) {
-        reply = "Szczerość i spokój to fundamenty, na których budujemy rezonans. Jak bardzo głęboka musi być ta bliskość, byś poczuł się zrozumiany?";
+        userSession.vector.analytic += 0.12;
+    } 
+    else if (text.includes('romantycz') || text.includes('miłość') || text.includes('serc')) {
+        reply = "Romantyzm w OTIUM to powolne odkrywanie wspólnych częstotliwości. Co dla Ciebie jest ważniejsze: wspólne pasje czy wspólne milczenie?";
         userSession.vector.relational += 0.1;
-    } else {
-        reply = "Każde Twoje słowo rzuca światło na tę postać. Opisz mi bardziej... jaki rytm rozmowy sprawia, że czujesz się sobą?";
+    }
+    else {
+        reply = "Każde Twoje słowo rzuca światło na tę postać. Opisz mi bardziej... jaki rytm rozmowy sprawia, że czujesz się w pełni sobą?";
     }
 
     const newAura = (userSession.vector.relational > 0.6) ? "BEZPOŚREDNIA OBECNOŚĆ" : "OBSERWATOR";
@@ -44,4 +52,4 @@ app.post('/chat', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`OTIUM Engine v2.6.1 online`));
+app.listen(PORT, () => console.log(`OTIUM Engine v2.7 online`));
