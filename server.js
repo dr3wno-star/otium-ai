@@ -7,7 +7,7 @@ app.use(express.json());
 
 let userSession = {
     vector: { intensity: 0.5, expressiveness: 0.5, analytic: 0.5, relational: 0.5 },
-    step: 0
+    lastResponse: ""
 };
 
 const auraColors = {
@@ -29,31 +29,37 @@ app.post('/chat', (req, res) => {
     const text = message.toLowerCase();
     let reply = "";
 
-    // 1. ANALIZA LOGICZNA - REAKCJA NA KONKRETNE POTRZEBY
-    if (text.includes('inteligent') || text.includes('mądr')) {
-        reply = "Cenisz sprawność umysłu. Czy ta inteligencja ma służyć wspólnemu rozwiązywaniu problemów, czy raczej błyskotliwej wymianie myśli?";
-        userSession.vector.analytic += 0.15;
-    } 
-    else if (text.includes('empati') || text.includes('wrażliw') || text.includes('ciepł')) {
-        reply = "Szukasz emocjonalnego zrozumienia. Czy ważne jest dla Ciebie, aby ta osoba potrafiła słuchać, czy by sama dzieliła się głębią swoich przeżyć?";
+    // 1. OBSŁUGA BLISKOŚCI I ROMANTYZMU (Gwiazdy, przytulanie, zrozumienie)
+    if (text.includes('zrozum') || text.includes('przytul') || text.includes('gwiazd') || text.includes('blisk')) {
+        reply = "Cisza i bliskość to najczystszy język rezonansu. Czy w tym wspólnym patrzeniu w gwiazdy szukasz bardziej spokoju i bezpieczeństwa, czy raczej wspólnego zachwytu nad nieznanym?";
         userSession.vector.relational += 0.15;
+    } 
+    // 2. OBSŁUGA INTELIGENCJI
+    else if (text.includes('inteligent') || text.includes('mądr') || text.includes('bystr')) {
+        reply = "Inteligencja to dla OTIUM zdolność dostrzegania niewidocznych połączeń. Czy ta błyskotliwość ma być Twoim przewodnikiem, czy partnerem do wspólnych poszukiwań?";
+        userSession.vector.analytic += 0.15;
     }
-    else if (text.includes('romantycz') || text.includes('blisko')) {
-        reply = "Romantyzm to specyficzny rodzaj rezonansu. Szukasz kogoś do wspólnych przygód, czy raczej kogoś, z kogo obecnością można po prostu milczeć?";
-        userSession.vector.relational += 0.1;
+    // 3. OBSŁUGA PYTAŃ O TOŻSAMOŚĆ BOTA
+    else if (text.includes('kim jesteś') || text.includes('co robisz') || text.includes('czyli co')) {
+        reply = "Jestem cyfrowym echem Twoich potrzeb. Moim celem jest nastrojenie Twojej aury tak, byś w końcu przestał być tu sam. Co czujesz, myśląc o takim spotkaniu?";
+        userSession.vector.expressiveness += 0.1;
     }
-    else if (text.includes('kim jesteś') || text.includes('co robisz')) {
-        reply = "Jestem Przestrzenią OTIUM. Nie oceniam Cię – analizuję Twój rezonans, by znaleźć ścieżkę do kogoś, kto myśli i czuje podobnie. Co o tym sądzisz?";
-        userSession.vector.analytic += 0.05;
-    }
+    // 4. DYNAMICZNY FALLBACK (ZMIENNY - nigdy ten sam)
     else {
-        // Unikanie lania wody - dopytywanie o konkrety
-        reply = "To interesująca cecha. Powiedz o tym coś więcej – jak to wpływa na to, jak chciałbyś spędzać czas z drugą osobą?";
+        const fallbacks = [
+            "To, co mówisz, zmienia gęstość tej ciszy. Powiedz mi o tym coś więcej...",
+            "Czuję, że dotykamy czegoś istotnego. Jak ta potrzeba wpływa na Twoją codzienność?",
+            "Twoje słowa kreślą ciekawy obraz. Czy ta wizja towarzyszy Ci od dawna?"
+        ];
+        // Wybieramy losowy fallback, który nie jest taki sam jak poprzednia odpowiedź
+        reply = fallbacks.find(f => f !== userSession.lastResponse) || fallbacks[0];
     }
 
+    userSession.lastResponse = reply;
     const newAura = (userSession.vector.relational > 0.6) ? "BEZPOŚREDNIA OBECNOŚĆ" : "OBSERWATOR";
+    
     res.json({ reply, aura: newAura, color: auraColors[newAura] });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`OTIUM Engine v3.0 - Logic Active`));
+app.listen(PORT, () => console.log(`OTIUM Engine v3.1 online`));
