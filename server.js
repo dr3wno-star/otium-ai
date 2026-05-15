@@ -41,9 +41,10 @@ const resonanceResponses = {
     ]
 };
 
+// Endpoint inicjujący z pierwszym pytaniem
 app.get('/init', (req, res) => {
     res.json({
-        reply: "Witaj w przestrzeni OTIUM. Twoja aura została wstępnie nastrojona. O czym chcesz teraz porozmawiać?",
+        reply: "Witaj w ciszy. OTIUM stroi się do Twojej obecności. Powiedz mi... kogo tak naprawdę szukasz w tej przestrzeni?",
         color: auraColors['OBSERWATOR'],
         aura: 'OBSERWATOR'
     });
@@ -54,13 +55,17 @@ app.post('/chat', (req, res) => {
     const text = message.toLowerCase();
     const v = userSession.vector;
 
-    if (text.includes('samotny') || text.includes('samotna') || text.includes('sam')) v.relational += 0.15;
-    if (text.length < 15) { v.analytic += 0.04; v.expressiveness -= 0.03; }
-    else if (text.length > 50) { v.expressiveness += 0.06; v.relational += 0.04; }
+    // Detekcja emocjonalna
+    if (text.includes('samotny') || text.includes('samotna') || text.includes('sam') || text.includes('szukam')) {
+        v.relational += 0.12;
+    }
 
-    const newAura = (v.relational > 0.65) ? "BEZPOŚREDNIA OBECNOŚĆ" : 
+    if (text.length < 15) { v.analytic += 0.05; }
+    else if (text.length > 50) { v.relational += 0.05; }
+
+    const newAura = (v.relational > 0.6) ? "BEZPOŚREDNIA OBECNOŚĆ" : 
                     (v.analytic > 0.6) ? "ŻYWY UMYSŁ" : 
-                    (v.relational > 0.5) ? "CICHA GŁĘBIA" : "OBSERWATOR";
+                    (v.relational > 0.45) ? "CICHA GŁĘBIA" : "OBSERWATOR";
 
     const pool = resonanceResponses[newAura];
     let replyText = pool[Math.floor(Math.random() * pool.length)];
@@ -71,4 +76,4 @@ app.post('/chat', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`OTIUM Engine running on port ${PORT}`));
+app.listen(PORT, () => console.log(`OTIUM Engine v2.5 online`));
