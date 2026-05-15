@@ -7,8 +7,7 @@ app.use(express.json());
 
 let userSession = {
     vector: { intensity: 0.5, expressiveness: 0.5, analytic: 0.5, relational: 0.5 },
-    currentAura: "OBSERWATOR",
-    lastResponse: ""
+    step: 0
 };
 
 const auraColors = {
@@ -20,7 +19,7 @@ const auraColors = {
 
 app.get('/init', (req, res) => {
     res.json({
-        reply: "Witaj w ciszy. OTIUM stroi się do Twojej obecności. Powiedz mi... kogo tak naprawdę szukasz w tej przestrzeni?",
+        reply: "Witaj. Przestrzeń OTIUM jest gotowa. Powiedz mi... kogo tak naprawdę tutaj szukasz?",
         color: auraColors['OBSERWATOR']
     });
 });
@@ -29,22 +28,27 @@ app.post('/chat', (req, res) => {
     const { message } = req.body;
     const text = message.toLowerCase();
     let reply = "";
-    
-    // LOGIKA REZONANSU - PRECYZYJNE ŚCIEŻKI
-    if (text.includes('empati') || text.includes('czuł') || text.includes('blisko')) {
-        reply = "Empatia to najwyższa forma inteligencji serca. Skoro jej szukasz, powiedz – czy wolisz, by ta druga osoba była Twoim lustrem, czy raczej Twoim dopełnieniem?";
+
+    // 1. ANALIZA LOGICZNA - REAKCJA NA KONKRETNE POTRZEBY
+    if (text.includes('inteligent') || text.includes('mądr')) {
+        reply = "Cenisz sprawność umysłu. Czy ta inteligencja ma służyć wspólnemu rozwiązywaniu problemów, czy raczej błyskotliwej wymianie myśli?";
+        userSession.vector.analytic += 0.15;
+    } 
+    else if (text.includes('empati') || text.includes('wrażliw') || text.includes('ciepł')) {
+        reply = "Szukasz emocjonalnego zrozumienia. Czy ważne jest dla Ciebie, aby ta osoba potrafiła słuchać, czy by sama dzieliła się głębią swoich przeżyć?";
         userSession.vector.relational += 0.15;
-    } 
-    else if (text.includes('inteligent') || text.includes('mądr') || text.includes('bystr')) {
-        reply = "Inteligencja to rzadkie światło, które nadaje sens tej ciszy. Powiedz, czy ta błyskotliwość ma być chłodna i analityczna, czy raczej pełna empatii?";
-        userSession.vector.analytic += 0.12;
-    } 
-    else if (text.includes('romantycz') || text.includes('miłość') || text.includes('serc')) {
-        reply = "Romantyzm w OTIUM to powolne odkrywanie wspólnych częstotliwości. Co dla Ciebie jest ważniejsze: wspólne pasje czy wspólne milczenie?";
+    }
+    else if (text.includes('romantycz') || text.includes('blisko')) {
+        reply = "Romantyzm to specyficzny rodzaj rezonansu. Szukasz kogoś do wspólnych przygód, czy raczej kogoś, z kogo obecnością można po prostu milczeć?";
         userSession.vector.relational += 0.1;
     }
+    else if (text.includes('kim jesteś') || text.includes('co robisz')) {
+        reply = "Jestem Przestrzenią OTIUM. Nie oceniam Cię – analizuję Twój rezonans, by znaleźć ścieżkę do kogoś, kto myśli i czuje podobnie. Co o tym sądzisz?";
+        userSession.vector.analytic += 0.05;
+    }
     else {
-        reply = "Każde Twoje słowo rzuca światło na tę postać. Opisz mi bardziej... jaki rytm rozmowy sprawia, że czujesz się w pełni sobą?";
+        // Unikanie lania wody - dopytywanie o konkrety
+        reply = "To interesująca cecha. Powiedz o tym coś więcej – jak to wpływa na to, jak chciałbyś spędzać czas z drugą osobą?";
     }
 
     const newAura = (userSession.vector.relational > 0.6) ? "BEZPOŚREDNIA OBECNOŚĆ" : "OBSERWATOR";
@@ -52,4 +56,4 @@ app.post('/chat', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`OTIUM Engine v2.7 online`));
+app.listen(PORT, () => console.log(`OTIUM Engine v3.0 - Logic Active`));
