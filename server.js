@@ -7,59 +7,82 @@ app.use(express.json());
 
 let userSession = {
     vector: { intensity: 0.5, expressiveness: 0.5, analytic: 0.5, relational: 0.5 },
-    lastResponse: ""
+    step: 0
 };
 
-const auraColors = {
-    'OBSERWATOR': '#1b4d3e',       
-    'ŻYWY UMYSŁ': '#2ecc71',       
-    'CICHA GŁĘBIA': '#0b3d33',     
-    'BEZPOŚREDNIA OBECNOŚĆ': '#2980b9' 
-};
+const questions = [
+    {
+        id: 0,
+        text: "Cześć. Aby system wiedział, w którą stronę Cię prowadzić, musimy się nastroić. Na początek: wolisz spędzać czas w grupie ludzi, czy raczej szukasz kogoś do rozmowy tylko we dwoje?",
+        trait: "relational"
+    },
+    {
+        id: 1,
+        text: "Rozumiem. A w rozmowie – wolisz konkretną wymianę zdań i faktów, czy raczej lubisz pogadać o emocjach i tym, co czujesz?",
+        trait: "analytic" 
+    },
+    {
+        id: 2,
+        text: "Kiedy poznajesz kogoś nowego, jesteś osobą, która od razu mówi szczerze co myśli, czy raczej potrzebujesz czasu i spokoju, żeby się otworzyć?",
+        trait: "expressiveness"
+    },
+    {
+        id: 3,
+        text: "Wyobraź sobie wieczór we dwoje. Wybierasz szaloną przygodę i dużo śmiechu, czy spokojny spacer i głębokie milczenie?",
+        trait: "intensity"
+    },
+    {
+        id: 4,
+        text: "Ostatnia kwestia: szukasz tu kogoś, kto jest Twoim całkowitym przeciwieństwem, czy kogoś, kto myśli i żyje bardzo podobnie do Ciebie?",
+        trait: "final"
+    }
+];
 
 app.get('/init', (req, res) => {
+    userSession.step = 0;
     res.json({
-        reply: "Witaj. Przestrzeń OTIUM jest gotowa. Powiedz mi... kogo tak naprawdę tutaj szukasz?",
-        color: auraColors['OBSERWATOR']
+        reply: questions[0].text,
+        color: '#1b4d3e'
     });
 });
 
 app.post('/chat', (req, res) => {
     const { message } = req.body;
     const text = message.toLowerCase();
-    let reply = "";
+    let step = userSession.step;
 
-    // 1. OBSŁUGA BLISKOŚCI I ROMANTYZMU (Gwiazdy, przytulanie, zrozumienie)
-    if (text.includes('zrozum') || text.includes('przytul') || text.includes('gwiazd') || text.includes('blisk')) {
-        reply = "Cisza i bliskość to najczystszy język rezonansu. Czy w tym wspólnym patrzeniu w gwiazdy szukasz bardziej spokoju i bezpieczeństwa, czy raczej wspólnego zachwytu nad nieznanym?";
-        userSession.vector.relational += 0.15;
-    } 
-    // 2. OBSŁUGA INTELIGENCJI
-    else if (text.includes('inteligent') || text.includes('mądr') || text.includes('bystr')) {
-        reply = "Inteligencja to dla OTIUM zdolność dostrzegania niewidocznych połączeń. Czy ta błyskotliwość ma być Twoim przewodnikiem, czy partnerem do wspólnych poszukiwań?";
-        userSession.vector.analytic += 0.15;
-    }
-    // 3. OBSŁUGA PYTAŃ O TOŻSAMOŚĆ BOTA
-    else if (text.includes('kim jesteś') || text.includes('co robisz') || text.includes('czyli co')) {
-        reply = "Jestem cyfrowym echem Twoich potrzeb. Moim celem jest nastrojenie Twojej aury tak, byś w końcu przestał być tu sam. Co czujesz, myśląc o takim spotkaniu?";
-        userSession.vector.expressiveness += 0.1;
-    }
-    // 4. DYNAMICZNY FALLBACK (ZMIENNY - nigdy ten sam)
-    else {
-        const fallbacks = [
-            "To, co mówisz, zmienia gęstość tej ciszy. Powiedz mi o tym coś więcej...",
-            "Czuję, że dotykamy czegoś istotnego. Jak ta potrzeba wpływa na Twoją codzienność?",
-            "Twoje słowa kreślą ciekawy obraz. Czy ta wizja towarzyszy Ci od dawna?"
-        ];
-        // Wybieramy losowy fallback, który nie jest taki sam jak poprzednia odpowiedź
-        reply = fallbacks.find(f => f !== userSession.lastResponse) || fallbacks[0];
+    // LOGIKA ANALIZY PROSTYCH ODPOWIEDZI
+    if (step === 0) {
+        if (text.includes('dwoje') || text.includes('sam') || text.includes('jeden')) userSession.vector.relational += 0.2;
+        else userSession.vector.relational -= 0.1;
+    } else if (step === 1) {
+        if (text.includes('konkret') || text.includes('fakt') || text.includes('logik')) userSession.vector.analytic += 0.2;
+        else userSession.vector.relational += 0.15;
+    } else if (step === 2) {
+        if (text.includes('szczer') || text.includes('od razu') || text.includes('mówię')) userSession.vector.expressiveness += 0.2;
+        else userSession.vector.expressiveness -= 0.2;
+    } else if (step === 3) {
+        if (text.includes('przygoda') || text.includes('śmiech') || text.includes('szalon')) userSession.vector.intensity += 0.2;
+        else userSession.vector.intensity -= 0.2;
     }
 
-    userSession.lastResponse = reply;
-    const newAura = (userSession.vector.relational > 0.6) ? "BEZPOŚREDNIA OBECNOŚĆ" : "OBSERWATOR";
-    
-    res.json({ reply, aura: newAura, color: auraColors[newAura] });
+    userSession.step++;
+
+    if (userSession.step < questions.length) {
+        res.json({
+            reply: questions[userSession.step].text,
+            color: '#1b4d3e'
+        });
+    } else {
+        const v = userSession.vector;
+        const aura = (v.relational > 0.6) ? "BEZPOŚREDNIA OBECNOŚĆ" : (v.analytic > 0.6) ? "ŻYWY UMYSŁ" : "OBSERWATOR";
+        
+        res.json({
+            reply: `Kalibracja zakończona. Twoja aura to ${aura}. System zapisał Twój wektor. Jesteś gotowy, by spotkać osobę, która pasuje do Twojego rytmu. Od czego chcesz zacząć?`,
+            color: (aura === "BEZPOŚREDNIA OBECNOŚĆ") ? "#3498db" : "#2ecc71"
+        });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`OTIUM Engine v3.1 online`));
+app.listen(PORT, () => console.log(`OTIUM v4.1 - Simple Language Active`));
